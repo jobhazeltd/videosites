@@ -410,7 +410,8 @@ async function initWatch() {
     box.querySelectorAll('.tab').forEach((p) => { p.hidden = p.dataset.pane !== t; });
   });
 
-  renderGrid(document.getElementById('related'), videos.filter((x) => x.id !== v.id).slice(0, 8));
+  const recs = recommend(v, videos);
+  renderSide(document.getElementById('related'), recs);
 
   // View count (server ek visitor ko 6 ghante mein ek dafa ginta hai)
   fetch(`/api/view?id=${encodeURIComponent(v.id)}`, { method: 'POST' })
@@ -420,6 +421,40 @@ async function initWatch() {
 
   const player = createPlayer(box.querySelector('#mount'), v);
   initPlayerControls(box, player);
+
+  // Video khatam -> agli video (agar Autoplay on hai aur Loop band hai)
+  const auto = document.getElementById('autoNext');
+  try { auto.checked = localStorage.getItem('autoNext') !== '0'; } catch {}
+  auto.addEventListener('change', () => { try { localStorage.setItem('autoNext', auto.checked ? '1' : '0'); } catch {} });
+  player.onEnded(() => {
+    if (!auto.checked || box.querySelector('#loopBtn').classList.contains('on') || !recs[0]) return;
+    location.href = `/watch.html?id=${encodeURIComponent(recs[0].id)}&autoplay=1`;
+  });
+  if (new URLSearchParams(location.search).get('autoplay') === '1') player.play();
+}
+
+/* ---------- Recommendations (side list) ----------
+   Pehle same category, phir zyada views, phir nayi. Current video nahi. */
+function recommend(current, all) {
+  const score = (x) => (x.category === current.category ? 1e12 : 0) + (Number(x.views) || 0) * 1e3 + (x.createdAt || 0) / 1e10;
+  return all.filter((x) => x.id !== current.id).sort((a, b) => score(b) - score(a)).slice(0, 20);
+}
+
+function sideItem(v) {
+  return `<a class="ritem" href="/watch.html?id=${encodeURIComponent(v.id)}">
+    <div class="rthumb">
+      <img loading="lazy" src="${esc(thumbOf(v))}" alt="" onerror="thumbErr(this)">
+      ${v.duration ? `<span class="dur">${esc(v.duration)}</span>` : ''}
+    </div>
+    <div class="rinfo">
+      <h3>${esc(v.title)}</h3>
+      <p>${esc(v.category)}</p>
+      <p>${fmtViews(v.views)}</p>
+    </div></a>`;
+}
+
+function renderSide(el, list) {
+  el.innerHTML = list.length ? list.map(sideItem).join('') : '<div class="empty">Aur videos nahi</div>';
 }
 
 /* ---------- Skip + A-B loop ---------- */

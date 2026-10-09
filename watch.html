@@ -10,10 +10,17 @@
 <header>
   <a class="logo" href="/">Stream<span>Box</span></a>
 </header>
-<main>
-  <div class="player" id="player"></div>
-  <h2 class="section">More videos</h2>
-  <div class="grid" id="related"></div>
+<main class="wmain">
+  <div class="wlayout">
+    <div class="player" id="player"></div>
+    <aside class="side">
+      <div class="sidehead">
+        <h2 class="section">Up next</h2>
+        <label class="auto"><input type="checkbox" id="autoNext" checked> Autoplay</label>
+      </div>
+      <div class="rlist" id="related"></div>
+    </aside>
+  </div>
 </main>
 <script src="/app.js"></script>
 <script>initWatch();</script>
