@@ -6,10 +6,10 @@
 //
 // NOTE: key (extra1 ... extra6) ko mat badlein — purana data isi se juda hai.
 window.EXTRA_FIELDS = [
-  { key: 'extra1', label: 'Field 1', placeholder: '', public: true, type: 'text' },
-  { key: 'extra2', label: 'Field 2', placeholder: '', public: true, type: 'text' },
-  { key: 'extra3', label: 'Field 3', placeholder: '', public: true, type: 'text' },
-  { key: 'extra4', label: 'Field 4', placeholder: '', public: true, type: 'text' },
-  { key: 'extra5', label: 'Field 5', placeholder: '', public: true, type: 'text' },
-  { key: 'extra6', label: 'Field 6', placeholder: '', public: true, type: 'textarea' },
+  { key: 'extra1', label: 'Release date:', placeholder: '', public: true, type: 'text' },
+  { key: 'extra2', label: 'Code:', placeholder: '', public: true, type: 'text' },
+  { key: 'extra3', label: 'Actress:', placeholder: '', public: true, type: 'text' },
+  { key: 'extra4', label: 'Genre:', placeholder: '', public: true, type: 'text' },
+  { key: 'extra5', label: 'Series:', placeholder: '', public: true, type: 'text' },
+  { key: 'extra6', label: 'Maker:', placeholder: '', public: true, type: 'textarea' },
 ];
