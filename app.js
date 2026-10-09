@@ -29,7 +29,7 @@ function card(v) {
     <div class="thumb">
       <img loading="lazy" src="${esc(thumbOf(v))}" alt="${esc(v.title)}" onerror="thumbErr(this)">
       ${v.duration ? `<span class="dur">${esc(v.duration)}</span>` : ''}
-      <span class="hint">▶ Dobara tap karein</span>
+      <span class="hint">▶ Tap Again </span>
     </div>
     <h3>${esc(v.title)}</h3><p>${esc(v.category)} · ${fmtViews(v.views)}</p></a>`;
 }
