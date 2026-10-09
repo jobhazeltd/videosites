@@ -47,3 +47,6 @@ iframe.srcprev{border:0;display:block}
 .tv{color:var(--muted);font-weight:400;font-size:.9rem}
 select{background:var(--card);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:8px;font:inherit;font-size:.9rem}
 .item p b{color:var(--text);font-weight:600}
+.extras{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.extras label:has(textarea){grid-column:1/-1}
+@media (max-width:520px){.extras{grid-template-columns:1fr}}

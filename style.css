@@ -121,3 +121,8 @@ footer{color:var(--muted);text-align:center;font-size:.8rem;padding:24px 16px;bo
   #moreWrap{order:3;margin-top:8px}
 }
 @media (max-width:480px){.rthumb{width:140px}}
+
+/* extra fields on watch page */
+.extra{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;font-size:.9rem;margin:-10px 0 24px}
+.extra dt{color:var(--muted)}
+.extra dd{white-space:pre-line;word-break:break-word}

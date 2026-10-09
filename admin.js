@@ -5,6 +5,14 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 var FALLBACK = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="#0e0f13"/>' +
   '<path d="M6.5 3v3l2.6-1.5z" fill="#3a3e4c"/></svg>');
+// Extra fields (fields.js se) form mein banana
+const EXTRA = window.EXTRA_FIELDS || [];
+const FIELD_KEYS = ['title', 'category', 'duration', 'src', 'thumbnail', 'description', ...EXTRA.map((f) => f.key)];
+document.getElementById('extraFields').innerHTML = EXTRA.map((f) => {
+  const attrs = `name="${esc(f.key)}" maxlength="${f.type === 'textarea' ? 1000 : 300}" placeholder="${esc(f.placeholder || '')}"`;
+  return `<label>${esc(f.label)}${f.type === 'textarea' ? `<textarea ${attrs} rows="2"></textarea>` : `<input ${attrs}>`}</label>`;
+}).join('');
+
 let password = sessionStorage.getItem('adminPw') || '';
 let videos = [];
 let editingId = null;
@@ -111,7 +119,7 @@ function openEditor(v) {
   $('#formTitle').textContent = v ? 'Video Edit' : 'Nayi Video';
   $('#formErr').textContent = '';
   $('#thumbMsg').textContent = '';
-  if (v) for (const k of ['title', 'category', 'duration', 'src', 'thumbnail', 'description']) form.elements[k].value = v[k] || '';
+  if (v) for (const k of FIELD_KEYS) form.elements[k].value = v[k] || '';
   $('#dlRows').innerHTML = '';
   (v?.downloads || []).forEach(addDlRow);
   metaFor = v ? v.src : '';
@@ -128,7 +136,7 @@ form.addEventListener('submit', async (e) => {
   $('#formErr').textContent = '';
   const fd = new FormData(form);
   const body = {};
-  for (const k of ['title', 'category', 'duration', 'src', 'thumbnail', 'description']) body[k] = fd.get(k) || '';
+  for (const k of FIELD_KEYS) body[k] = fd.get(k) || '';
   body.downloads = [...$('#dlRows').children].map((row) => ({
     label: row.querySelector('[data-f=label]').value,
     quality: row.querySelector('[data-f=quality]').value,

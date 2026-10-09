@@ -105,6 +105,8 @@ export function cleanInput(body, existing) {
     src: str(body.src, 1000),
     description: str(body.description, 2000),
   };
+  // Extra fields (fields.js wale) — extra1 ... extra6
+  for (let i = 1; i <= 6; i++) v[`extra${i}`] = str(body[`extra${i}`], 1000);
   v.downloads = (Array.isArray(body.downloads) ? body.downloads : []).slice(0, 10).map((d) => ({
     label: str(d?.label, 80),
     quality: str(d?.quality, 12),

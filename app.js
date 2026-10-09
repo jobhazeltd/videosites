@@ -395,7 +395,7 @@ async function initWatch() {
     </div>
     <h1>${esc(v.title)}</h1>
     <div class="tabs"><button class="on" data-tab="details">Details</button>${v.downloads?.length ? '<button data-tab="dl">Downloads</button>' : ''}</div>
-    <div class="tab" data-pane="details"><div class="meta"><span id="viewCount">${fmtViews(v.views)}</span> · ${esc(v.category)}${v.duration ? ` · ${esc(v.duration)}` : ''}<br>${esc(v.description)}</div></div>
+    <div class="tab" data-pane="details"><div class="meta"><span id="viewCount">${fmtViews(v.views)}</span> · ${esc(v.category)}${v.duration ? ` · ${esc(v.duration)}` : ''}<br>${esc(v.description)}</div>${extraHtml(v)}</div>
     <div class="tab" data-pane="dl" hidden>${(v.downloads || []).map((d) => `
       <div class="dl">
         <div class="dlname">${esc(d.label || v.title)}${d.quality ? ` <span class="q">${esc(d.quality)}</span>` : ''}</div>
@@ -434,6 +434,13 @@ async function initWatch() {
     location.href = `/watch.html?id=${encodeURIComponent(recs[0].id)}&autoplay=1`;
   });
   if (new URLSearchParams(location.search).get('autoplay') === '1') player.play();
+}
+
+/* ---------- Extra fields (fields.js) ---------- */
+function extraHtml(v) {
+  const rows = (window.EXTRA_FIELDS || []).filter((f) => f.public && String(v[f.key] || '').trim());
+  if (!rows.length) return '';
+  return `<dl class="extra">${rows.map((f) => `<dt>${esc(f.label)}</dt><dd>${esc(v[f.key])}</dd>`).join('')}</dl>`;
 }
 
 /* ---------- Recommendations (side list) ----------
