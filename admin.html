@@ -31,7 +31,7 @@
       <h2 class="section">Videos (<span id="count">0</span>) · <span class="tv"><span id="totalViews">0</span> total views</span></h2>
       <input id="filter" type="search" placeholder="Filter...">
       <select id="sort"><option value="new">Newest</option><option value="views">Most viewed</option></select>
-      <button id="addBtn" class="btn">+ New Video</button>
+      <button id="addBtn" class="btn">+ Nayi Video</button>
     </div>
     <div id="list" class="alist"></div>
   </div>
@@ -40,7 +40,7 @@
 <!-- Add / Edit form -->
 <dialog id="editor">
   <form id="form" method="dialog" class="panel">
-    <h2 id="formTitle">New Video</h2>
+    <h2 id="formTitle">Nayi Video</h2>
 
     <label>Title *<input name="title" required maxlength="150"></label>
     <div class="row">
@@ -63,6 +63,8 @@
     </div>
     <p class="note" id="thumbMsg"></p>
 
+    <div id="extraFields" class="extras"></div>
+
     <label>Description<textarea name="description" rows="3" maxlength="2000"></textarea></label>
 
     <div class="dlhead"><span>Downloads (magnet ya https link)</span><button type="button" id="addDl" class="btn ghost sm">+ Link</button></div>
@@ -76,6 +78,7 @@
   </form>
 </dialog>
 
+<script src="/fields.js"></script>
 <script src="/admin.js"></script>
 </body>
 </html>
