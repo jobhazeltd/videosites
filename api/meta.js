@@ -14,13 +14,7 @@ export default async function handler(req, res) {
     if (yt) {
       const watch = `https://www.youtube.com/watch?v=${yt}`;
       const data = await getJson(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(watch)}`);
-      return res.json({
-        type: 'youtube',
-        title: data?.title || '',
-        author: data?.author_name || '',
-        thumbnail: ytThumb(yt),
-        duration: '',
-      });
+      return res.json({ type: 'youtube', title: data?.title || '', thumbnail: ytThumb(yt), duration: '' });
     }
 
     if (/^https?:\/\/(www\.|player\.)?vimeo\.com\//i.test(url)) {
@@ -28,13 +22,11 @@ export default async function handler(req, res) {
       return res.json({
         type: 'vimeo',
         title: data?.title || '',
-        author: data?.author_name || '',
         thumbnail: data?.thumbnail_url || '',
         duration: data?.duration ? fmt(data.duration) : '',
       });
     }
 
-    // Direct file: naam file name se
     const name = decodeURIComponent(new URL(url).pathname.split('/').pop() || '')
       .replace(/\.[a-z0-9]{2,4}$/i, '').replace(/[-_.]+/g, ' ').trim();
     return res.json({ type: 'file', title: name, thumbnail: '', duration: '' });

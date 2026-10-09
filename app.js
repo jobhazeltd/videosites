@@ -11,6 +11,11 @@ function ytId(url) {
   const m = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(url || '');
   return m ? m[1] : null;
 }
+const fmtViews = (n) => {
+  n = Number(n) || 0;
+  const c = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+  return `${c} ${n === 1 ? 'view' : 'views'}`;
+};
 const thumbOf = (v) => v.thumbnail || (ytId(v.src) ? `https://i.ytimg.com/vi/${ytId(v.src)}/hqdefault.jpg` : FALLBACK_THUMB);
 
 async function loadVideos() {
@@ -26,7 +31,7 @@ function card(v) {
       ${v.duration ? `<span class="dur">${esc(v.duration)}</span>` : ''}
       <span class="hint">▶ Dobara tap karein</span>
     </div>
-    <h3>${esc(v.title)}</h3><p>${esc(v.category)}</p></a>`;
+    <h3>${esc(v.title)}</h3><p>${esc(v.category)} · ${fmtViews(v.views)}</p></a>`;
 }
 
 /* ---------- Thumbnail preview ----------
@@ -226,7 +231,7 @@ async function initWatch() {
     </div>
     <h1>${esc(v.title)}</h1>
     <div class="tabs"><button class="on" data-tab="details">Details</button>${v.downloads?.length ? '<button data-tab="dl">Downloads</button>' : ''}</div>
-    <div class="tab" data-pane="details"><div class="meta">${esc(v.category)}${v.duration ? ` · ${esc(v.duration)}` : ''}<br>${esc(v.description)}</div></div>
+    <div class="tab" data-pane="details"><div class="meta"><span id="viewCount">${fmtViews(v.views)}</span> · ${esc(v.category)}${v.duration ? ` · ${esc(v.duration)}` : ''}<br>${esc(v.description)}</div></div>
     <div class="tab" data-pane="dl" hidden>${(v.downloads || []).map((d) => `
       <div class="dl">
         <div class="dlname">${esc(d.label || v.title)}${d.quality ? ` <span class="q">${esc(d.quality)}</span>` : ''}</div>
@@ -242,6 +247,12 @@ async function initWatch() {
   });
 
   renderGrid(document.getElementById('related'), videos.filter((x) => x.id !== v.id).slice(0, 8));
+
+  // View count (server ek visitor ko 6 ghante mein ek dafa ginta hai)
+  fetch(`/api/view?id=${encodeURIComponent(v.id)}`, { method: 'POST' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => { if (d && typeof d.views === 'number') box.querySelector('#viewCount').textContent = fmtViews(d.views); })
+    .catch(() => {});
 
   const mount = box.querySelector('#mount');
   const yt = ytId(v.src);

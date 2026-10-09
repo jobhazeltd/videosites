@@ -67,12 +67,15 @@ async function refresh() {
 
 function renderList() {
   const q = $('#filter').value.toLowerCase();
-  const list = videos.filter((v) => (v.title + ' ' + v.category).toLowerCase().includes(q));
+  const sort = $('#sort').value;
+  const list = videos.filter((v) => (v.title + ' ' + v.category).toLowerCase().includes(q))
+    .sort((a, b) => (sort === 'views' ? (b.views || 0) - (a.views || 0) : b.createdAt - a.createdAt));
   $('#count').textContent = videos.length;
+  $('#totalViews').textContent = videos.reduce((n, v) => n + (Number(v.views) || 0), 0).toLocaleString();
   $('#list').innerHTML = list.length ? list.map((v) => `
     <div class="item">
       <img src="${esc(v.thumbnail || (ytId(v.src) ? `https://i.ytimg.com/vi/${ytId(v.src)}/hqdefault.jpg` : FALLBACK))}" alt="" loading="lazy" onerror="this.onerror=null;this.src=FALLBACK">
-      <div class="info"><h3>${esc(v.title)}</h3><p>${esc(v.category)} · ${esc(v.duration || '—')}</p></div>
+      <div class="info"><h3>${esc(v.title)}</h3><p>${esc(v.category)} · ${esc(v.duration || '—')} · <b>${(Number(v.views) || 0).toLocaleString()}</b> views</p></div>
       <div class="btns">
         <a class="btn ghost" href="/watch.html?id=${encodeURIComponent(v.id)}" target="_blank">View</a>
         <button class="btn ghost" data-edit="${esc(v.id)}">Edit</button>
@@ -83,6 +86,7 @@ function renderList() {
 }
 
 $('#filter').addEventListener('input', renderList);
+$('#sort').addEventListener('change', renderList);
 
 $('#list').addEventListener('click', async (e) => {
   const editId = e.target.dataset.edit;

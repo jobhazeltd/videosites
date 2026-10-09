@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import seed from './_seed.js';
 
 const KEY = 'videos';
+const VIEWS = 'views';
 
 export function getRedis() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
@@ -26,28 +27,44 @@ export async function listVideos() {
   const redis = getRedis();
   if (!redis) return [...seed];
   await ensureSeed(redis);
-  const all = (await redis.hgetall(KEY)) || {};
-  return Object.values(all).map(parse).sort((a, b) => b.createdAt - a.createdAt);
+  const [all, views] = await Promise.all([redis.hgetall(KEY), redis.hgetall(VIEWS)]);
+  return Object.values(all || {}).map(parse)
+    .map((v) => ({ ...v, views: Number(views?.[v.id]) || 0 }))
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getVideo(id) {
   const redis = getRedis();
   if (!redis) return seed.find((v) => v.id === id) || null;
-  const v = await redis.hget(KEY, id);
-  return v ? parse(v) : null;
+  const [v, views] = await Promise.all([redis.hget(KEY, id), redis.hget(VIEWS, id)]);
+  return v ? { ...parse(v), views: Number(views) || 0 } : null;
+}
+
+// Ek IP se ek video ka view 6 ghante mein sirf ek dafa count hota hai
+export async function addView(id, ip) {
+  const redis = getRedis();
+  if (!redis) return null;
+  if (!(await redis.hexists(KEY, id))) return null;
+  const who = crypto.createHash('sha256').update(`${ip}|${process.env.ADMIN_PASSWORD || 'salt'}`).digest('hex').slice(0, 16);
+  const fresh = await redis.set(`seen:${id}:${who}`, 1, { nx: true, ex: 6 * 3600 });
+  if (fresh) return redis.hincrby(VIEWS, id, 1);
+  return Number(await redis.hget(VIEWS, id)) || 0;
 }
 
 export async function saveVideo(video) {
   const redis = mustRedis();
   await ensureSeed(redis);
-  await redis.hset(KEY, { [video.id]: JSON.stringify(video) });
+  const { views, ...data } = video; // views alag hash mein rehte hain
+  await redis.hset(KEY, { [video.id]: JSON.stringify(data) });
   return video;
 }
 
 export async function deleteVideo(id) {
   const redis = mustRedis();
   await ensureSeed(redis);
-  return (await redis.hdel(KEY, id)) > 0;
+  const ok = (await redis.hdel(KEY, id)) > 0;
+  if (ok) await redis.hdel(VIEWS, id);
+  return ok;
 }
 
 function mustRedis() {
@@ -75,6 +92,7 @@ export function ytId(url) {
   return m ? m[1] : null;
 }
 export const ytThumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+
 const isMagnet = (s) => /^magnet:\?\S*xt=urn:btih:[a-z0-9]{32,40}\S*$/i.test(s);
 const str = (s, max) => String(s ?? '').trim().slice(0, max);
 
