@@ -17,10 +17,3 @@
 3. Project → **Settings → Environment Variables** → `ADMIN_PASSWORD` = koi strong password.
 4. **Deployments → Redeploy** (taake naye env variables lag jayein).
 5. `https://your-site.vercel.app/admin.html` khol kar login karein.
-
-Pehli dafa database khali ho to sample videos khud add ho jati hain; chahein to delete kar dein.
-
-## Videos kahan rakhein
-Vercel pe badi video files upload na karein. Video ko Cloudflare R2, Bunny.net, Backblaze B2 waghera pe rakhein aur direct `.mp4` link admin panel mein daalein.
-"Video se frame lo" tabhi chalega jab video server CORS allow kare (R2/Bunny pe `Access-Control-Allow-Origin` set kar sakte hain). Warna screenshot le kar "Image upload" karein.
-
