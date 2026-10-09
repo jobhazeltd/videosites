@@ -144,20 +144,42 @@ async function initHome() {
   update();
 }
 
-/* ---------- Player (HTML5 file ya YouTube) — dono ka ek hi interface ---------- */
-function html5Player(mount, v) {
-  mount.innerHTML = `<video controls autoplay playsinline poster="${esc(thumbOf(v))}" src="${esc(v.src)}"></video>`;
-  const el = mount.querySelector('video');
-  el.addEventListener('error', () => {
-    mount.insertAdjacentHTML('beforeend', '<p class="perr">Video load nahi hui. Link direct .mp4/.webm file ka hona chahiye.</p>');
-  }, { once: true });
+/* ---------- Apna player: poster + apna play button + apne controls ----------
+   Engine (HTML5 file ya YouTube) neeche ka kaam karta hai, UI hamari apni hai. */
+const ICON = {
+  play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
+  vol: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
+  mute: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zm12.6 3 2.7-2.7-1.3-1.3-2.7 2.7-2.7-2.7-1.3 1.3 2.7 2.7-2.7 2.7 1.3 1.3 2.7-2.7 2.7 2.7 1.3-1.3z"/></svg>',
+  fs: '<svg viewBox="0 0 24 24"><path d="M5 5h5v2H7v3H5zm9 0h5v5h-2V7h-3zM5 14h2v3h3v2H5zm12 0h2v5h-5v-2h3z"/></svg>',
+};
+const clock = (s) => {
+  s = Math.max(0, Math.floor(s || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+};
+
+function html5Engine(media, v) {
+  const el = document.createElement('video');
+  el.playsInline = true;
+  el.setAttribute('playsinline', '');
+  el.preload = 'metadata';
+  el.src = v.src;
+  media.appendChild(el);
   return {
+    start: () => el.play(),
+    play: () => el.play().catch(() => {}),
+    pause: () => el.pause(),
+    paused: () => el.paused,
+    buffering: () => !el.paused && el.readyState < 3,
     time: () => el.currentTime,
     duration: () => el.duration || 0,
     seek: (t) => { el.currentTime = t; },
-    play: () => el.play().catch(() => {}),
-    onTime: (cb) => el.addEventListener('timeupdate', cb),
+    muted: () => el.muted,
+    setMuted: (m) => { el.muted = m; },
     onEnded: (cb) => el.addEventListener('ended', cb),
+    onError: (cb) => el.addEventListener('error', cb),
+    nativeFullscreen: () => el.webkitEnterFullscreen && el.webkitEnterFullscreen(),
   };
 }
 
@@ -174,30 +196,172 @@ function loadYT() {
   return ytReady;
 }
 
-async function youtubePlayer(mount, id) {
-  mount.innerHTML = '<div class="frame"><div id="ytp"></div></div>';
-  await loadYT();
-  const timeCbs = [];
+function ytEngine(media, id) {
+  let p = null;
+  let pending = null;
   const endCbs = [];
-  const p = await new Promise((resolve) => {
-    const player = new YT.Player('ytp', {
-      videoId: id,
-      playerVars: { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
-      events: {
-        onReady: () => resolve(player),
-        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) endCbs.forEach((f) => f()); },
-        onError: () => mount.insertAdjacentHTML('beforeend', '<p class="perr">Yeh YouTube video embed ki ijazat nahi deti ya private hai.</p>'),
-      },
-    });
-  });
-  setInterval(() => timeCbs.forEach((f) => f()), 250);
+  const errCbs = [];
+  const ensure = () => {
+    if (p) return Promise.resolve(p);
+    if (pending) return pending;
+    pending = loadYT().then(() => new Promise((resolve) => {
+      const div = document.createElement('div');
+      media.appendChild(div);
+      const pl = new YT.Player(div, {
+        videoId: id,
+        playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, iv_load_policy: 3, playsinline: 1, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: () => { p = pl; resolve(pl); },
+          onStateChange: (e) => { if (e.data === 0) endCbs.forEach((f) => f()); },
+          onError: () => errCbs.forEach((f) => f()),
+        },
+      });
+    }));
+    return pending;
+  };
+  const state = () => (p ? p.getPlayerState() : -1);
   return {
-    time: () => p.getCurrentTime() || 0,
-    duration: () => p.getDuration() || 0,
-    seek: (t) => p.seekTo(t, true),
-    play: () => p.playVideo(),
-    onTime: (cb) => timeCbs.push(cb),
+    start: () => ensure().then((pl) => pl.playVideo()),
+    play: () => { ensure().then((pl) => pl.playVideo()); },
+    pause: () => p && p.pauseVideo(),
+    paused: () => ![1, 3].includes(state()),
+    buffering: () => state() === 3,
+    time: () => (p ? p.getCurrentTime() || 0 : 0),
+    duration: () => (p ? p.getDuration() || 0 : 0),
+    seek: (t) => p && p.seekTo(t, true),
+    muted: () => (p ? p.isMuted() : false),
+    setMuted: (m) => p && (m ? p.mute() : p.unMute()),
     onEnded: (cb) => endCbs.push(cb),
+    onError: (cb) => errCbs.push(cb),
+    nativeFullscreen: null,
+  };
+}
+
+function createPlayer(mount, v) {
+  mount.innerHTML = `
+    <div class="vp" tabindex="0">
+      <div class="vp-media"></div>
+      <div class="vp-poster"></div>
+      <div class="vp-hit"></div>
+      <div class="vp-spin" hidden></div>
+      <button class="vp-big" aria-label="Play">${ICON.play}</button>
+      <div class="vp-bar">
+        <button class="vp-btn vp-pp" aria-label="Play / Pause">${ICON.play}</button>
+        <span class="vp-t">0:00 / 0:00</span>
+        <input class="vp-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Seek">
+        <button class="vp-btn vp-mute" aria-label="Mute">${ICON.vol}</button>
+        <button class="vp-btn vp-fs" aria-label="Fullscreen">${ICON.fs}</button>
+      </div>
+    </div>`;
+  const root = mount.querySelector('.vp');
+  const $q = (s) => root.querySelector(s);
+  const poster = $q('.vp-poster');
+  poster.style.backgroundImage = `url(${JSON.stringify(thumbOf(v))})`;
+
+  const yt = ytId(v.src);
+  const eng = yt ? ytEngine($q('.vp-media'), yt) : html5Engine($q('.vp-media'), v);
+  let started = false;
+  let dragging = false;
+  let hideTimer = null;
+  const timeCbs = [];
+
+  const showBar = () => {
+    root.classList.add('ui');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { if (!eng.paused() && !dragging) root.classList.remove('ui'); }, 2800);
+  };
+
+  const start = async () => {
+    if (started) return;
+    started = true;
+    root.classList.add('started');
+    $q('.vp-spin').hidden = false;
+    try { await eng.start(); } catch { /* autoplay block: user dobara tap kare */ }
+  };
+
+  const toggle = () => {
+    if (!started) return start();
+    if (eng.paused()) eng.play(); else eng.pause();
+    showBar();
+  };
+
+  $q('.vp-big').addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+  $q('.vp-pp').addEventListener('click', toggle);
+  $q('.vp-hit').addEventListener('click', () => {
+    if (!started) return start();
+    // Touch pe pehla tap sirf controls dikhata hai
+    if (window.matchMedia('(hover: none)').matches && !root.classList.contains('ui')) return showBar();
+    toggle();
+  });
+  root.addEventListener('pointermove', showBar);
+  root.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'k') { e.preventDefault(); toggle(); }
+  });
+
+  $q('.vp-mute').addEventListener('click', () => { eng.setMuted(!eng.muted()); showBar(); });
+
+  $q('.vp-fs').addEventListener('click', () => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else if (root.requestFullscreen) {
+      root.requestFullscreen().catch(() => {});
+    } else if (root.webkitRequestFullscreen) {
+      root.webkitRequestFullscreen();
+    } else if (eng.nativeFullscreen) {
+      eng.nativeFullscreen(); // iPhone Safari
+    }
+  });
+
+  const seek = $q('.vp-seek');
+  seek.addEventListener('input', () => {
+    dragging = true;
+    const d = eng.duration();
+    $q('.vp-t').textContent = `${clock((seek.value / 1000) * d)} / ${clock(d)}`;
+  });
+  seek.addEventListener('change', () => {
+    dragging = false;
+    eng.seek((seek.value / 1000) * eng.duration());
+    showBar();
+  });
+
+  eng.onError(() => {
+    $q('.vp-spin').hidden = true;
+    mount.insertAdjacentHTML('beforeend', `<p class="perr">${yt
+      ? 'Yeh YouTube video embed ki ijazat nahi deti ya private hai.'
+      : 'Video load nahi hui. Link direct .mp4/.webm file ka hona chahiye.'}</p>`);
+  });
+
+  // UI update loop
+  let wasPaused = null;
+  setInterval(() => {
+    if (!started) return;
+    const t = eng.time();
+    const d = eng.duration();
+    const paused = eng.paused();
+    if (!dragging) {
+      seek.value = d ? Math.round((t / d) * 1000) : 0;
+      $q('.vp-t').textContent = `${clock(t)} / ${clock(d)}`;
+    }
+    seek.style.setProperty('--p', `${seek.value / 10}%`);
+    if (paused !== wasPaused) {
+      wasPaused = paused;
+      root.classList.toggle('paused', paused);
+      $q('.vp-pp').innerHTML = paused ? ICON.play : ICON.pause;
+      if (paused) root.classList.add('ui'); else showBar();
+    }
+    $q('.vp-spin').hidden = !(eng.buffering() || (!d && !paused));
+    $q('.vp-mute').innerHTML = eng.muted() ? ICON.mute : ICON.vol;
+    timeCbs.forEach((f) => f());
+  }, 250);
+
+  // Skip / loop controls ke liye wahi purana interface
+  return {
+    time: () => eng.time(),
+    duration: () => eng.duration(),
+    seek: (t) => { if (!started) start().then(() => setTimeout(() => eng.seek(t), 600)); else eng.seek(t); },
+    play: () => (started ? eng.play() : start()),
+    onTime: (cb) => timeCbs.push(cb),
+    onEnded: (cb) => eng.onEnded(cb),
   };
 }
 
@@ -254,9 +418,7 @@ async function initWatch() {
     .then((d) => { if (d && typeof d.views === 'number') box.querySelector('#viewCount').textContent = fmtViews(d.views); })
     .catch(() => {});
 
-  const mount = box.querySelector('#mount');
-  const yt = ytId(v.src);
-  const player = yt ? await youtubePlayer(mount, yt) : html5Player(mount, v);
+  const player = createPlayer(box.querySelector('#mount'), v);
   initPlayerControls(box, player);
 }
 
