@@ -1,4 +1,5 @@
 :root{--bg:#0e0f13;--card:#181a21;--line:#262934;--text:#e8e9ee;--muted:#8b8fa0;--accent:#ff4d6d}
+[hidden]{display:none!important}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:inherit;text-decoration:none}
@@ -57,3 +58,11 @@ footer{color:var(--muted);text-align:center;font-size:.8rem;padding:24px 16px;bo
 .dlsize{color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:.85rem}
 .dlbtn{font-weight:600;white-space:nowrap}
 .tab[data-pane=dl]{margin-bottom:24px}
+
+/* embeds + errors */
+.thumb iframe.pv{position:absolute;inset:0;width:100%;height:100%;border:0;opacity:0;transition:opacity .2s;pointer-events:none;background:#000}
+.thumb iframe.pv.on{opacity:1}
+.card.nopreview .pv{display:none}
+.frame{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
+.frame iframe,.frame #ytp{position:absolute;inset:0;width:100%;height:100%;border:0}
+.perr{color:#ff8fa3;font-size:.88rem;margin-top:8px}

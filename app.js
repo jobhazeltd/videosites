@@ -1,6 +1,18 @@
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Thumbnail na mile to yeh dikhe
+const FALLBACK_THUMB = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="#181a21"/>' +
+  '<path d="M6.5 3v3l2.6-1.5z" fill="#3a3e4c"/></svg>');
+window.thumbErr = (img) => { img.onerror = null; img.src = FALLBACK_THUMB; };
+
+function ytId(url) {
+  const m = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(url || '');
+  return m ? m[1] : null;
+}
+const thumbOf = (v) => v.thumbnail || (ytId(v.src) ? `https://i.ytimg.com/vi/${ytId(v.src)}/hqdefault.jpg` : FALLBACK_THUMB);
+
 async function loadVideos() {
   const res = await fetch('/api/videos');
   if (!res.ok) throw new Error('Videos load nahi hui');
@@ -10,25 +22,27 @@ async function loadVideos() {
 function card(v) {
   return `<a class="card" href="/watch.html?id=${encodeURIComponent(v.id)}" data-src="${esc(v.src)}">
     <div class="thumb">
-      <img loading="lazy" src="${esc(v.thumbnail)}" alt="${esc(v.title)}">
-      <span class="dur">${esc(v.duration)}</span>
+      <img loading="lazy" src="${esc(thumbOf(v))}" alt="${esc(v.title)}" onerror="thumbErr(this)">
+      ${v.duration ? `<span class="dur">${esc(v.duration)}</span>` : ''}
       <span class="hint">▶ Dobara tap karein</span>
     </div>
     <h3>${esc(v.title)}</h3><p>${esc(v.category)}</p></a>`;
 }
 
 /* ---------- Thumbnail preview ----------
-   Desktop: mouse le jao to preview chalta hai, click pe video khulti hai.
-   Mobile:  pehla tap = preview, doosra tap = video khulti hai. */
-const PREVIEW_START = 5;   // second se preview shuru
-const PREVIEW_LENGTH = 6;  // kitne second ka loop
+   Desktop: hover = preview. Mobile: pehla tap = preview, doosra tap = video. */
+const PREVIEW_START = 5;
+const PREVIEW_LENGTH = 6;
 const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 let activeCard = null;
 
 function stopPreview() {
   if (!activeCard) return;
-  const v = activeCard.querySelector('video.pv');
-  if (v) { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); }
+  const el = activeCard.querySelector('.pv');
+  if (el) {
+    if (el.tagName === 'VIDEO') { el.pause(); el.removeAttribute('src'); el.load(); }
+    el.remove();
+  }
   activeCard.classList.remove('previewing');
   activeCard = null;
 }
@@ -38,28 +52,39 @@ function startPreview(cardEl) {
   stopPreview();
   activeCard = cardEl;
   cardEl.classList.add('previewing');
+  const src = cardEl.dataset.src;
+  const yt = ytId(src);
+  let el;
 
-  const v = document.createElement('video');
-  v.className = 'pv';
-  v.muted = true;
-  v.playsInline = true;
-  v.setAttribute('playsinline', '');
-  v.preload = 'metadata';
-  v.src = cardEl.dataset.src;
-
-  v.addEventListener('loadedmetadata', () => {
-    const start = v.duration > PREVIEW_START + PREVIEW_LENGTH ? PREVIEW_START : 0;
-    v.dataset.start = start;
-    v.currentTime = start;
-  });
-  v.addEventListener('timeupdate', () => {
-    const start = Number(v.dataset.start || 0);
-    if (v.currentTime > start + PREVIEW_LENGTH) v.currentTime = start;
-  });
-  v.addEventListener('playing', () => v.classList.add('on'));
-
-  cardEl.querySelector('.thumb').appendChild(v);
-  v.play().catch(() => {});
+  if (yt) {
+    el = document.createElement('iframe');
+    el.className = 'pv';
+    el.allow = 'autoplay; encrypted-media';
+    el.src = `https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&mute=1&controls=0&start=${PREVIEW_START}` +
+      `&end=${PREVIEW_START + PREVIEW_LENGTH}&loop=1&playlist=${yt}&playsinline=1&modestbranding=1&rel=0&disablekb=1`;
+    el.addEventListener('load', () => setTimeout(() => el.classList.add('on'), 400));
+  } else {
+    el = document.createElement('video');
+    el.className = 'pv';
+    el.muted = true;
+    el.playsInline = true;
+    el.setAttribute('playsinline', '');
+    el.preload = 'metadata';
+    el.src = src;
+    el.addEventListener('loadedmetadata', () => {
+      const start = el.duration > PREVIEW_START + PREVIEW_LENGTH ? PREVIEW_START : 0;
+      el.dataset.start = start;
+      el.currentTime = start;
+    });
+    el.addEventListener('timeupdate', () => {
+      const start = Number(el.dataset.start || 0);
+      if (el.currentTime > start + PREVIEW_LENGTH) el.currentTime = start;
+    });
+    el.addEventListener('playing', () => el.classList.add('on'));
+    el.addEventListener('error', () => cardEl.classList.add('nopreview'));
+  }
+  cardEl.querySelector('.thumb').appendChild(el);
+  if (el.play) el.play().catch(() => {});
 }
 
 function bindPreviews(container) {
@@ -114,6 +139,63 @@ async function initHome() {
   update();
 }
 
+/* ---------- Player (HTML5 file ya YouTube) — dono ka ek hi interface ---------- */
+function html5Player(mount, v) {
+  mount.innerHTML = `<video controls autoplay playsinline poster="${esc(thumbOf(v))}" src="${esc(v.src)}"></video>`;
+  const el = mount.querySelector('video');
+  el.addEventListener('error', () => {
+    mount.insertAdjacentHTML('beforeend', '<p class="perr">Video load nahi hui. Link direct .mp4/.webm file ka hona chahiye.</p>');
+  }, { once: true });
+  return {
+    time: () => el.currentTime,
+    duration: () => el.duration || 0,
+    seek: (t) => { el.currentTime = t; },
+    play: () => el.play().catch(() => {}),
+    onTime: (cb) => el.addEventListener('timeupdate', cb),
+    onEnded: (cb) => el.addEventListener('ended', cb),
+  };
+}
+
+let ytReady;
+function loadYT() {
+  if (!ytReady) {
+    ytReady = new Promise((resolve) => {
+      window.onYouTubeIframeAPIReady = resolve;
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(s);
+    });
+  }
+  return ytReady;
+}
+
+async function youtubePlayer(mount, id) {
+  mount.innerHTML = '<div class="frame"><div id="ytp"></div></div>';
+  await loadYT();
+  const timeCbs = [];
+  const endCbs = [];
+  const p = await new Promise((resolve) => {
+    const player = new YT.Player('ytp', {
+      videoId: id,
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
+      events: {
+        onReady: () => resolve(player),
+        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) endCbs.forEach((f) => f()); },
+        onError: () => mount.insertAdjacentHTML('beforeend', '<p class="perr">Yeh YouTube video embed ki ijazat nahi deti ya private hai.</p>'),
+      },
+    });
+  });
+  setInterval(() => timeCbs.forEach((f) => f()), 250);
+  return {
+    time: () => p.getCurrentTime() || 0,
+    duration: () => p.getDuration() || 0,
+    seek: (t) => p.seekTo(t, true),
+    play: () => p.playVideo(),
+    onTime: (cb) => timeCbs.push(cb),
+    onEnded: (cb) => endCbs.push(cb),
+  };
+}
+
 async function initWatch() {
   const box = document.getElementById('player');
   const id = new URLSearchParams(location.search).get('id');
@@ -122,7 +204,8 @@ async function initWatch() {
   const v = videos.find((x) => x.id === id);
   if (!v) { box.innerHTML = '<div class="empty">Video nahi mili. <a href="/">Home</a></div>'; return; }
   document.title = v.title;
-  box.innerHTML = `<video controls autoplay playsinline poster="${esc(v.thumbnail)}" src="${esc(v.src)}"></video>
+
+  box.innerHTML = `<div id="mount"></div>
     <div class="ctrl">
       <div class="seg">
         <button data-skip="-600">« 10m</button><button data-skip="-60">‹ 1m</button><button data-skip="-10">‹ 10s</button>
@@ -143,24 +226,30 @@ async function initWatch() {
     </div>
     <h1>${esc(v.title)}</h1>
     <div class="tabs"><button class="on" data-tab="details">Details</button>${v.downloads?.length ? '<button data-tab="dl">Downloads</button>' : ''}</div>
-    <div class="tab" data-pane="details"><div class="meta">${esc(v.category)} · ${esc(v.duration)}<br>${esc(v.description)}</div></div>
+    <div class="tab" data-pane="details"><div class="meta">${esc(v.category)}${v.duration ? ` · ${esc(v.duration)}` : ''}<br>${esc(v.description)}</div></div>
     <div class="tab" data-pane="dl" hidden>${(v.downloads || []).map((d) => `
       <div class="dl">
         <div class="dlname">${esc(d.label || v.title)}${d.quality ? ` <span class="q">${esc(d.quality)}</span>` : ''}</div>
         <span class="dlsize">${esc(d.size)}</span>
         <a class="dlbtn" href="${esc(d.url)}" rel="nofollow noopener" ${d.url.startsWith('http') ? 'target="_blank"' : ''}>⤓ ${d.url.startsWith('magnet:') ? 'Magnet' : 'Download'}</a>
       </div>`).join('')}</div>`;
+
   box.querySelector('.tabs').addEventListener('click', (e) => {
     const t = e.target.dataset.tab;
     if (!t) return;
     box.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
     box.querySelectorAll('.tab').forEach((p) => { p.hidden = p.dataset.pane !== t; });
   });
-  initPlayerControls(box);
+
   renderGrid(document.getElementById('related'), videos.filter((x) => x.id !== v.id).slice(0, 8));
+
+  const mount = box.querySelector('#mount');
+  const yt = ytId(v.src);
+  const player = yt ? await youtubePlayer(mount, yt) : html5Player(mount, v);
+  initPlayerControls(box, player);
 }
 
-/* ---------- Player controls: skip + A-B loop ---------- */
+/* ---------- Skip + A-B loop ---------- */
 const fmt = (s) => {
   s = Math.max(0, Math.floor(s || 0));
   return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, '0')).join(':');
@@ -171,32 +260,32 @@ const parseTime = (str) => {
   return parts.reduce((acc, n) => acc * 60 + n, 0);
 };
 
-function initPlayerControls(box) {
-  const video = box.querySelector('video');
+function initPlayerControls(box, player) {
   const inA = box.querySelector('#loopA');
   const inB = box.querySelector('#loopB');
   const loopBtn = box.querySelector('#loopBtn');
   let looping = false;
 
-  box.querySelectorAll('[data-skip]').forEach((b) => b.addEventListener('click', () => {
-    const t = video.currentTime + Number(b.dataset.skip);
-    video.currentTime = Math.min(Math.max(0, t), video.duration || t);
-  }));
+  const skip = (delta) => {
+    const d = player.duration();
+    const t = Math.max(0, player.time() + delta);
+    player.seek(d ? Math.min(t, d - 0.5) : t);
+  };
 
+  box.querySelectorAll('[data-skip]').forEach((b) => b.addEventListener('click', () => skip(Number(b.dataset.skip))));
   box.querySelectorAll('[data-pin]').forEach((b) => b.addEventListener('click', () => {
-    (b.dataset.pin === 'A' ? inA : inB).value = fmt(video.currentTime);
+    (b.dataset.pin === 'A' ? inA : inB).value = fmt(player.time());
   }));
-
   [inA, inB].forEach((inp) => inp.addEventListener('change', () => {
     const s = parseTime(inp.value);
     inp.value = fmt(Number.isNaN(s) ? 0 : s);
   }));
 
   const range = () => {
-    const a = parseTime(inA.value);
+    const a = parseTime(inA.value) || 0;
     let b = parseTime(inB.value);
-    if (!b || b <= a) b = video.duration || Infinity; // B khali ho to video ke end tak
-    return [a || 0, b];
+    if (!b || b <= a) b = player.duration() || Infinity;
+    return [a, b];
   };
 
   loopBtn.addEventListener('click', () => {
@@ -204,26 +293,23 @@ function initPlayerControls(box) {
     loopBtn.classList.toggle('on', looping);
     if (looping) {
       const [a, b] = range();
-      if (video.currentTime < a || video.currentTime >= b) video.currentTime = a;
-      video.play().catch(() => {});
+      const t = player.time();
+      if (t < a || t >= b) player.seek(a);
+      player.play();
     }
   });
 
-  video.addEventListener('timeupdate', () => {
+  player.onTime(() => {
     if (!looping) return;
     const [a, b] = range();
-    if (video.currentTime >= b - 0.15) video.currentTime = a;
+    if (player.time() >= b - 0.25) player.seek(a);
   });
-  video.addEventListener('ended', () => {
-    if (looping) { video.currentTime = range()[0]; video.play().catch(() => {}); }
-  });
+  player.onEnded(() => { if (looping) { player.seek(range()[0]); player.play(); } });
 
-  // Keyboard: ← → = 10s, Shift+← → = 1m
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
-    const step = (e.shiftKey ? 60 : 10) * (e.key === 'ArrowLeft' ? -1 : 1);
-    video.currentTime = Math.max(0, video.currentTime + step);
+    skip((e.shiftKey ? 60 : 10) * (e.key === 'ArrowLeft' ? -1 : 1));
   });
 }

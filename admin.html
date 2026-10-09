@@ -48,8 +48,9 @@
     </div>
     <datalist id="catList"></datalist>
 
-    <label>Video URL (.mp4) *<input name="src" type="url" required placeholder="https://..."></label>
+    <label>Video URL * <small>(YouTube link ya direct .mp4)</small><input name="src" type="url" required placeholder="https://youtube.com/watch?v=... ya https://.../video.mp4"></label>
     <video id="srcPreview" class="srcprev" muted playsinline controls preload="metadata" crossorigin="anonymous" hidden></video>
+    <iframe id="srcYt" class="srcprev" allow="encrypted-media; picture-in-picture" allowfullscreen hidden></iframe>
 
     <label>Thumbnail URL<input name="thumbnail" type="url" placeholder="https://..."></label>
     <div class="thumbtools">

@@ -69,6 +69,12 @@ export function isAdmin(req) {
 }
 
 const isUrl = (s) => /^https?:\/\/\S+$/i.test(s);
+
+export function ytId(url) {
+  const m = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(url || '');
+  return m ? m[1] : null;
+}
+export const ytThumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 const isMagnet = (s) => /^magnet:\?\S*xt=urn:btih:[a-z0-9]{32,40}\S*$/i.test(s);
 const str = (s, max) => String(s ?? '').trim().slice(0, max);
 
@@ -93,6 +99,8 @@ export function cleanInput(body, existing) {
   if (!v.title) throw badReq('Title zaroori hai');
   if (!isUrl(v.src)) throw badReq('Video URL http(s) link hona chahiye');
   if (v.thumbnail && !isUrl(v.thumbnail)) throw badReq('Thumbnail URL http(s) link hona chahiye');
+  const yt = ytId(v.src);
+  if (yt && !v.thumbnail) v.thumbnail = ytThumb(yt);
   if (existing) return { ...existing, ...v, updatedAt: Date.now() };
   const slug = v.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'video';
   return { id: `${slug}-${crypto.randomBytes(3).toString('hex')}`, ...v, createdAt: Date.now() };

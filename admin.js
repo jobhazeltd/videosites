@@ -2,6 +2,9 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+var FALLBACK = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="#0e0f13"/>' +
+  '<path d="M6.5 3v3l2.6-1.5z" fill="#3a3e4c"/></svg>');
 let password = sessionStorage.getItem('adminPw') || '';
 let videos = [];
 let editingId = null;
@@ -68,7 +71,7 @@ function renderList() {
   $('#count').textContent = videos.length;
   $('#list').innerHTML = list.length ? list.map((v) => `
     <div class="item">
-      <img src="${esc(v.thumbnail)}" alt="" loading="lazy">
+      <img src="${esc(v.thumbnail || (ytId(v.src) ? `https://i.ytimg.com/vi/${ytId(v.src)}/hqdefault.jpg` : FALLBACK))}" alt="" loading="lazy" onerror="this.onerror=null;this.src=FALLBACK">
       <div class="info"><h3>${esc(v.title)}</h3><p>${esc(v.category)} · ${esc(v.duration || '—')}</p></div>
       <div class="btns">
         <a class="btn ghost" href="/watch.html?id=${encodeURIComponent(v.id)}" target="_blank">View</a>
@@ -107,6 +110,7 @@ function openEditor(v) {
   if (v) for (const k of ['title', 'category', 'duration', 'src', 'thumbnail', 'description']) form.elements[k].value = v[k] || '';
   $('#dlRows').innerHTML = '';
   (v?.downloads || []).forEach(addDlRow);
+  metaFor = v ? v.src : '';
   updateThumbPreview();
   updateSrcPreview();
   dlg.showModal();
@@ -163,19 +167,61 @@ function updateThumbPreview() {
   const url = form.elements.thumbnail.value.trim();
   const img = $('#thumbPreview');
   img.hidden = !url;
-  if (url) img.src = url;
+  if (url) {
+    img.onerror = () => { $('#thumbMsg').textContent = 'Thumbnail URL load nahi hua — link check karein.'; };
+    img.src = url;
+  }
 }
 form.elements.thumbnail.addEventListener('input', updateThumbPreview);
 
-/* Video preview + auto duration */
+/* Video preview + auto details (title / thumbnail / duration) */
 const srcVid = $('#srcPreview');
+const srcYt = $('#srcYt');
+function ytId(url) {
+  const m = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i.exec(url || '');
+  return m ? m[1] : null;
+}
+
 function updateSrcPreview() {
   const url = form.elements.src.value.trim();
-  srcVid.hidden = !/^https?:\/\//.test(url);
-  if (srcVid.hidden) { srcVid.removeAttribute('src'); return; }
-  if (srcVid.src !== url) srcVid.src = url;
+  const valid = /^https?:\/\//.test(url);
+  const yt = valid && ytId(url);
+  srcYt.hidden = !yt;
+  srcVid.hidden = !valid || !!yt;
+  $('#grabFrame').hidden = !!yt;
+  if (yt) {
+    const embed = `https://www.youtube-nocookie.com/embed/${yt}?rel=0`;
+    if (srcYt.src !== embed) srcYt.src = embed;
+    srcVid.removeAttribute('src');
+  } else {
+    srcYt.removeAttribute('src');
+    if (!valid) srcVid.removeAttribute('src');
+    else if (srcVid.src !== url) srcVid.src = url;
+  }
 }
-form.elements.src.addEventListener('change', updateSrcPreview);
+
+let metaFor = '';
+async function autoFill() {
+  const url = form.elements.src.value.trim();
+  if (!/^https?:\/\//.test(url) || url === metaFor) return;
+  metaFor = url;
+  $('#thumbMsg').textContent = 'Details fetch ho rahi hain...';
+  try {
+    const m = await api(`/api/meta?url=${encodeURIComponent(url)}`);
+    const f = form.elements;
+    if (m.title && !f.title.value) f.title.value = m.title;
+    if (m.thumbnail && !f.thumbnail.value) { f.thumbnail.value = m.thumbnail; updateThumbPreview(); }
+    if (m.duration && !f.duration.value) f.duration.value = m.duration;
+    $('#thumbMsg').textContent = m.type === 'youtube'
+      ? 'YouTube se title aur thumbnail aa gaye ✓ (duration khud likhein, ya khali chhor dein)'
+      : m.type === 'vimeo' ? 'Vimeo se details aa gayin ✓' : '';
+  } catch (err) {
+    $('#thumbMsg').textContent = err.message;
+  }
+}
+
+form.elements.src.addEventListener('change', () => { updateSrcPreview(); autoFill(); });
+form.elements.src.addEventListener('paste', () => setTimeout(() => { updateSrcPreview(); autoFill(); }, 0));
 srcVid.addEventListener('loadedmetadata', () => {
   if (!form.elements.duration.value && isFinite(srcVid.duration)) {
     const s = Math.round(srcVid.duration);

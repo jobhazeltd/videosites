@@ -42,3 +42,5 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 .dlrow{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:8px;padding:8px}
 .dlmeta{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px}
 @media (max-width:520px){.dlmeta{grid-template-columns:1fr 1fr}}
+label small{color:var(--muted);font-weight:400;opacity:.8}
+iframe.srcprev{border:0;display:block}
