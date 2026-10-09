@@ -24,18 +24,3 @@ Pehli dafa database khali ho to sample videos khud add ho jati hain; chahein to 
 Vercel pe badi video files upload na karein. Video ko Cloudflare R2, Bunny.net, Backblaze B2 waghera pe rakhein aur direct `.mp4` link admin panel mein daalein.
 "Video se frame lo" tabhi chalega jab video server CORS allow kare (R2/Bunny pe `Access-Control-Allow-Origin` set kar sakte hain). Warna screenshot le kar "Image upload" karein.
 
-## Local chalana
-```
-npm i -g vercel
-npm install
-vercel link
-vercel env pull .env.local
-vercel dev
-```
-
-## Security notes
-- Password sirf server pe check hota hai (`x-admin-password` header, timing-safe compare).
-- Admin ke liye strong password rakhein; zarurat ho to baad mein rate-limit ya proper auth (NextAuth/Clerk) add karein.
-
-## Note
-Sirf woh content lagayein jis ka license aap ke paas hai, aur Vercel ki Acceptable Use Policy follow karein (adult content allowed nahi).
