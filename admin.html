@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin · StreamBox</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+<header>
+  <a class="logo" href="/">Stream<span>Box</span> <small>Admin</small></a>
+  <div class="spacer"></div>
+  <button id="logout" class="btn ghost" hidden>Logout</button>
+</header>
+
+<main>
+  <!-- Login -->
+  <form id="login" class="panel narrow">
+    <h2>Admin Login</h2>
+    <input type="password" id="pw" placeholder="Password" required autocomplete="current-password">
+    <button class="btn">Login</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+
+  <div id="app" hidden>
+    <div id="warn" class="warn" hidden></div>
+
+    <div class="toolbar">
+      <h2 class="section">Videos (<span id="count">0</span>)</h2>
+      <input id="filter" type="search" placeholder="Filter...">
+      <button id="addBtn" class="btn">+ Nayi Video</button>
+    </div>
+    <div id="list" class="alist"></div>
+  </div>
+</main>
+
+<!-- Add / Edit form -->
+<dialog id="editor">
+  <form id="form" method="dialog" class="panel">
+    <h2 id="formTitle">Nayi Video</h2>
+
+    <label>Title *<input name="title" required maxlength="150"></label>
+    <div class="row">
+      <label>Category<input name="category" list="catList" maxlength="50" placeholder="General"></label>
+      <label>Duration<input name="duration" maxlength="12" placeholder="Auto"></label>
+    </div>
+    <datalist id="catList"></datalist>
+
+    <label>Video URL (.mp4) *<input name="src" type="url" required placeholder="https://..."></label>
+    <video id="srcPreview" class="srcprev" muted playsinline controls preload="metadata" crossorigin="anonymous" hidden></video>
+
+    <label>Thumbnail URL<input name="thumbnail" type="url" placeholder="https://..."></label>
+    <div class="thumbtools">
+      <img id="thumbPreview" alt="" hidden>
+      <div class="thumbbtns">
+        <label class="btn ghost file">Image upload<input type="file" id="thumbFile" accept="image/*" hidden></label>
+        <button type="button" id="grabFrame" class="btn ghost">Video se frame lo</button>
+      </div>
+    </div>
+    <p class="note" id="thumbMsg"></p>
+
+    <label>Description<textarea name="description" rows="3" maxlength="2000"></textarea></label>
+
+    <div class="dlhead"><span>Downloads (magnet ya https link)</span><button type="button" id="addDl" class="btn ghost sm">+ Link</button></div>
+    <div id="dlRows" class="dlrows"></div>
+
+    <p class="err" id="formErr"></p>
+    <div class="actions">
+      <button type="button" id="cancel" class="btn ghost">Cancel</button>
+      <button type="submit" id="save" class="btn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/admin.js"></script>
+</body>
+</html>
