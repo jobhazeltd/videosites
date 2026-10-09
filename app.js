@@ -411,7 +411,10 @@ async function initWatch() {
   });
 
   const recs = recommend(v, videos);
-  renderSide(document.getElementById('related'), recs);
+  renderSide(document.getElementById('related'), recs.slice(0, 5));
+  const rest = recs.slice(5);
+  document.getElementById('moreWrap').hidden = !rest.length;
+  if (rest.length) renderGrid(document.getElementById('more'), rest);
 
   // View count (server ek visitor ko 6 ghante mein ek dafa ginta hai)
   fetch(`/api/view?id=${encodeURIComponent(v.id)}`, { method: 'POST' })
@@ -437,7 +440,7 @@ async function initWatch() {
    Pehle same category, phir zyada views, phir nayi. Current video nahi. */
 function recommend(current, all) {
   const score = (x) => (x.category === current.category ? 1e12 : 0) + (Number(x.views) || 0) * 1e3 + (x.createdAt || 0) / 1e10;
-  return all.filter((x) => x.id !== current.id).sort((a, b) => score(b) - score(a)).slice(0, 20);
+  return all.filter((x) => x.id !== current.id).sort((a, b) => score(b) - score(a)).slice(0, 48);
 }
 
 function sideItem(v) {

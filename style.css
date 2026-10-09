@@ -97,7 +97,10 @@ footer{color:var(--muted);text-align:center;font-size:.8rem;padding:24px 16px;bo
 .wmain{max-width:1500px}
 .wlayout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}
 .wlayout .player{max-width:none;margin:0}
-.side{position:sticky;top:72px;max-height:calc(100vh - 88px);overflow-y:auto;scrollbar-width:thin}
+.side{min-width:0}
+.wleft{min-width:0}
+#moreWrap{margin-top:28px}
+#more{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
 .sidehead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .sidehead h2{margin:0}
 .auto{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.85rem;cursor:pointer}
@@ -112,6 +115,9 @@ footer{color:var(--muted);text-align:center;font-size:.8rem;padding:24px 16px;bo
 .rinfo p{font-size:.78rem;color:var(--muted);line-height:1.4}
 @media (max-width:1000px){
   .wlayout{grid-template-columns:1fr}
-  .side{position:static;max-height:none;overflow:visible}
+  .side{order:2}
+  .wleft{display:contents}
+  .wleft .player{order:1}
+  #moreWrap{order:3;margin-top:8px}
 }
 @media (max-width:480px){.rthumb{width:140px}}
