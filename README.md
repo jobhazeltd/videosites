@@ -18,24 +18,7 @@
 4. **Deployments → Redeploy** (taake naye env variables lag jayein).
 5. `https://your-site.vercel.app/admin.html` khol kar login karein.
 
-Pehli dafa database khali ho to sample videos khud add ho jati hain; chahein to delete kar dein.
 
-## Videos kahan rakhein
-Vercel pe badi video files upload na karein. Video ko Cloudflare R2, Bunny.net, Backblaze B2 waghera pe rakhein aur direct `.mp4` link admin panel mein daalein.
-"Video se frame lo" tabhi chalega jab video server CORS allow kare (R2/Bunny pe `Access-Control-Allow-Origin` set kar sakte hain). Warna screenshot le kar "Image upload" karein.
+## Official iframe embed support
 
-## Local chalana
-```
-npm i -g vercel
-npm install
-vercel link
-vercel env pull .env.local
-vercel dev
-```
-
-## Security notes
-- Password sirf server pe check hota hai (`x-admin-password` header, timing-safe compare).
-- Admin ke liye strong password rakhein; zarurat ho to baad mein rate-limit ya proper auth (NextAuth/Clerk) add karein.
-
-## Note
-Sirf woh content lagayein jis ka license aap ke paas hai, aur Vercel ki Acceptable Use Policy follow karein (adult content allowed nahi).
+Admin panel mein **Source type → Official iframe embed** select karke provider ka official HTTPS embed URL paste karein. Normal watch-page URLs aur browser ke `blob:` URLs aam tor par embed sources nahi hote. Iframe videos provider ke apne playback controls use karti hain; StreamBox ke custom seek, loop aur duration controls iframe mode mein available nahi hote. Kuch providers embedding ko block kar sakte hain, aur provider ki terms/rights ke mutabiq hi content embed karein.

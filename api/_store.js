@@ -102,6 +102,7 @@ export function cleanInput(body, existing) {
     category: str(body.category, 50) || 'General',
     duration: str(body.duration, 12),
     thumbnail: str(body.thumbnail, 1000),
+    srcType: body.srcType === 'embed' ? 'embed' : 'file',
     src: str(body.src, 1000),
     description: str(body.description, 2000),
   };
@@ -117,7 +118,8 @@ export function cleanInput(body, existing) {
     if (!isUrl(d.url) && !isMagnet(d.url)) throw badReq(`Download link sahi nahi: ${d.url.slice(0, 40)}`);
   }
   if (!v.title) throw badReq('Title zaroori hai');
-  if (!isUrl(v.src)) throw badReq('Video URL http(s) link hona chahiye');
+  if (!isUrl(v.src)) throw badReq('Video / Embed URL http(s) link hona chahiye');
+  if (v.srcType === 'embed' && !/^https:\/\//i.test(v.src)) throw badReq('Embed URL HTTPS hona chahiye');
   if (v.thumbnail && !isUrl(v.thumbnail)) throw badReq('Thumbnail URL http(s) link hona chahiye');
   const yt = ytId(v.src);
   if (yt && !v.thumbnail) v.thumbnail = ytThumb(yt);

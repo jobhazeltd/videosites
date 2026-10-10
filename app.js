@@ -238,6 +238,26 @@ function ytEngine(media, id) {
 }
 
 function createPlayer(mount, v) {
+  // Official provider embeds use their own controls; the custom HTML5 controls
+  // below cannot seek or read duration from a cross-origin iframe.
+  if (v.srcType === 'embed') {
+    const frame = document.createElement('iframe');
+    frame.title = `${v.title || 'Video'} player`;
+    frame.src = v.src;
+    frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
+    frame.allowFullscreen = true;
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.loading = 'lazy';
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-forms');
+    const shell = document.createElement('div');
+    shell.className = 'vp vp-embed';
+    shell.appendChild(frame);
+    mount.replaceChildren(shell);
+    return {
+      time: () => 0, duration: () => 0, seek: () => {},
+      play: () => {}, onTime: () => {}, onEnded: () => {},
+    };
+  }
   mount.innerHTML = `
     <div class="vp" tabindex="0">
       <div class="vp-media"></div>
@@ -479,6 +499,7 @@ const parseTime = (str) => {
 };
 
 function initPlayerControls(box, player) {
+  if (box.querySelector('.vp-embed')) box.querySelectorAll('.ctrl').forEach((el) => { el.hidden = true; });
   const inA = box.querySelector('#loopA');
   const inB = box.querySelector('#loopB');
   const loopBtn = box.querySelector('#loopBtn');

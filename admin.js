@@ -7,7 +7,7 @@ var FALLBACK = 'data:image/svg+xml,' + encodeURIComponent(
   '<path d="M6.5 3v3l2.6-1.5z" fill="#3a3e4c"/></svg>');
 // Extra fields (fields.js se) form mein banana
 const EXTRA = window.EXTRA_FIELDS || [];
-const FIELD_KEYS = ['title', 'category', 'duration', 'src', 'thumbnail', 'description', ...EXTRA.map((f) => f.key)];
+const FIELD_KEYS = ['title', 'category', 'duration', 'srcType', 'src', 'thumbnail', 'description', ...EXTRA.map((f) => f.key)];
 document.getElementById('extraFields').innerHTML = EXTRA.map((f) => {
   const attrs = `name="${esc(f.key)}" maxlength="${f.type === 'textarea' ? 1000 : 300}" placeholder="${esc(f.placeholder || '')}"`;
   return `<label>${esc(f.label)}${f.type === 'textarea' ? `<textarea ${attrs} rows="2"></textarea>` : `<input ${attrs}>`}</label>`;
@@ -119,7 +119,8 @@ function openEditor(v) {
   $('#formTitle').textContent = v ? 'Video Edit' : 'Nayi Video';
   $('#formErr').textContent = '';
   $('#thumbMsg').textContent = '';
-  if (v) for (const k of FIELD_KEYS) form.elements[k].value = v[k] || '';
+  if (v) for (const k of FIELD_KEYS) form.elements[k].value = v[k] || (k === 'srcType' ? 'file' : '');
+  else form.elements.srcType.value = 'file';
   $('#dlRows').innerHTML = '';
   (v?.downloads || []).forEach(addDlRow);
   metaFor = v ? v.src : '';
@@ -196,14 +197,25 @@ function ytId(url) {
 
 function updateSrcPreview() {
   const url = form.elements.src.value.trim();
-  const valid = /^https?:\/\//.test(url);
-  const yt = valid && ytId(url);
-  srcYt.hidden = !yt;
-  srcVid.hidden = !valid || !!yt;
-  $('#grabFrame').hidden = !!yt;
+  const valid = /^https:\/\//i.test(url);
+  const type = form.elements.srcType.value || 'file';
+  const yt = type === 'file' && valid && ytId(url);
+  const embed = type === 'embed' && valid;
+  srcYt.hidden = !yt && !embed;
+  srcVid.hidden = !valid || !!yt || embed;
+  $('#grabFrame').hidden = !!yt || embed;
+  $('#srcHint').textContent = type === 'embed'
+    ? '(Provider ka official HTTPS embed URL paste karein; normal watch-page URL aksar kaam nahi karta)'
+    : '(YouTube link ya direct .mp4/.webm URL)';
+  form.elements.src.placeholder = type === 'embed'
+    ? 'https://provider.example/embed/VIDEO_ID'
+    : 'https://youtube.com/watch?v=... ya https://.../video.mp4';
   if (yt) {
-    const embed = `https://www.youtube-nocookie.com/embed/${yt}?rel=0`;
-    if (srcYt.src !== embed) srcYt.src = embed;
+    const ytEmbed = `https://www.youtube-nocookie.com/embed/${yt}?rel=0`;
+    if (srcYt.src !== ytEmbed) srcYt.src = ytEmbed;
+    srcVid.removeAttribute('src');
+  } else if (embed) {
+    if (srcYt.src !== url) srcYt.src = url;
     srcVid.removeAttribute('src');
   } else {
     srcYt.removeAttribute('src');
@@ -215,6 +227,7 @@ function updateSrcPreview() {
 let metaFor = '';
 async function autoFill() {
   const url = form.elements.src.value.trim();
+  if (form.elements.srcType.value === 'embed') return;
   if (!/^https?:\/\//.test(url) || url === metaFor) return;
   metaFor = url;
   $('#thumbMsg').textContent = 'Details fetch ho rahi hain...';
@@ -232,8 +245,10 @@ async function autoFill() {
   }
 }
 
-form.elements.src.addEventListener('change', () => { updateSrcPreview(); autoFill(); });
-form.elements.src.addEventListener('paste', () => setTimeout(() => { updateSrcPreview(); autoFill(); }, 0));
+form.elements.srcType.addEventListener('change', updateSrcPreview);
+form.elements.src.addEventListener('input', updateSrcPreview);
+form.elements.src.addEventListener('change', () => { updateSrcPreview(); if (form.elements.srcType.value !== 'embed') autoFill(); });
+form.elements.src.addEventListener('paste', () => setTimeout(() => { updateSrcPreview(); if (form.elements.srcType.value !== 'embed') autoFill(); }, 0));
 srcVid.addEventListener('loadedmetadata', () => {
   if (!form.elements.duration.value && isFinite(srcVid.duration)) {
     const s = Math.round(srcVid.duration);
